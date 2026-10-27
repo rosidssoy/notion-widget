@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>session strip</title>
+    <style>
+        body {
+            font-variant-caps: all-petite-caps;
+            font-family: monospace;
+            background: transparent;
+        }
+
+        .widget {
+            padding: 5px 5px ;
+            color: #ffffff;
+            display: flex;
+            justify-content:center;
+            align-items:center;
+            flex-direction: column;
+            max-width: 95%;
+            margin: auto;
+            border: 1px solid #ffffff;
+            border-radius: 5px;
+            box-shadow: 0px 0px 0px 0px #ffffff;
+            background: transparent;
+        }
+
+        .strip {
+            width: 100%;
+            align-self: stretch;
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            font-size: 12px;
+            line-height: 1.35;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .cell {
+            min-width: 0;
+            text-align: center;
+            padding: 1px 4px 0;
+            border-left: 1px solid #ffffff;
+        }
+
+        .cell:nth-child(4n + 1) {
+            border-left: 0;
+        }
+
+        .name,
+        .state,
+        .count {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .state[data-state="open"] { color: #3ddc6a; }
+        .state[data-state="closed"] { color: #ff5c5c; }
+
+        .dot {
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            margin-right: 4px;
+            border-radius: 50%;
+            background: currentColor;
+            vertical-align: 1px;
+        }
+
+        @media (max-width: 480px) {
+            .strip {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .cell {
+                border-left: 1px solid #ffffff;
+                border-top: 1px solid #ffffff;
+            }
+
+            .cell:nth-child(odd) {
+                border-left: 0;
+            }
+
+            .cell:nth-child(-n + 2) {
+                border-top: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Sydney, Tokyo, London, and New York in one row. Daylight saving follows Intl. -->
+    <div class="widget">
+        <div class="strip">
+            <section class="cell" id="sydney">
+                <div class="name">Sydney</div>
+                <div class="state" data-state="closed"><span class="dot"></span><span data-label>closed</span></div>
+                <div class="count" data-count>opens 0h 0m</div>
+            </section>
+            <section class="cell" id="tokyo">
+                <div class="name">Tokyo</div>
+                <div class="state" data-state="closed"><span class="dot"></span><span data-label>closed</span></div>
+                <div class="count" data-count>opens 0h 0m</div>
+            </section>
+            <section class="cell" id="london">
+                <div class="name">London</div>
+                <div class="state" data-state="closed"><span class="dot"></span><span data-label>closed</span></div>
+                <div class="count" data-count>opens 0h 0m</div>
+            </section>
+            <section class="cell" id="newyork">
+                <div class="name">New York</div>
+                <div class="state" data-state="closed"><span class="dot"></span><span data-label>closed</span></div>
+                <div class="count" data-count>opens 0h 0m</div>
+            </section>
+        </div>
+    </div>
+    <script>
+        var SESSIONS = [
+            { id: 'sydney', timeZone: 'Australia/Sydney', open: 7, close: 16 },
+            { id: 'tokyo', timeZone: 'Asia/Tokyo', open: 9, close: 18 },
+            { id: 'london', timeZone: 'Europe/London', open: 8, close: 17 },
+            { id: 'newyork', timeZone: 'America/New_York', open: 8, close: 17 }
+        ];
+        var formatters = Object.create(null);
+
+        function formatter(timeZone) {
+            var key = timeZone || '';
+            if (!formatters[key]) {
+                var options = {
+                    hourCycle: 'h23',
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit'
+                };
+                if (timeZone) options.timeZone = timeZone;
+                formatters[key] = new Intl.DateTimeFormat('en-US', options);
+            }
+            return formatters[key];
+        }
+
+        function parts(date, timeZone) {
+            var list = formatter(timeZone).formatToParts(date);
+            var map = Object.create(null);
+            for (var i = 0; i < list.length; i++) {
+                if (list[i].type !== 'literal') map[list[i].type] = list[i].value;
+            }
+            var hour = Number(map.hour);
+            var year = Number(map.year);
+            var month = Number(map.month);
+            var day = Number(map.day);
+            if (hour === 24) {
+                hour = 0;
+                var next = new Date(Date.UTC(year, month - 1, day + 1));
+                year = next.getUTCFullYear();
+                month = next.getUTCMonth() + 1;
+                day = next.getUTCDate();
+            }
+            return {
+                year: year,
+                month: month,
+                day: day,
+                hour: hour,
+                minute: Number(map.minute),
+                second: Number(map.second)
+            };
+        }
+
+        function zonedTimeToUtc(year, month, day, hour, minute, second, timeZone) {
+            var utc = Date.UTC(year, month - 1, day, hour, minute, second);
+            for (var i = 0; i < 4; i++) {
+                var p = parts(new Date(utc), timeZone);
+                var asUtc = Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute, p.second);
+                var desired = Date.UTC(year, month - 1, day, hour, minute, second);
+                var diff = desired - asUtc;
+                utc += diff;
+                if (diff === 0) break;
+            }
+            return utc;
+        }
+
+        function phrase(ms, isOpen) {
+            var total = Math.max(0, Math.floor(ms / 60000));
+            var h = Math.floor(total / 60);
+            var m = total % 60;
+            return (isOpen ? 'closes' : 'opens') + ' ' + h + 'h ' + m + 'm';
+        }
+
+        function render() {
+            var now = new Date();
+            var nowMs = now.getTime();
+            for (var i = 0; i < SESSIONS.length; i++) {
+                var session = SESSIONS[i];
+                var root = document.getElementById(session.id);
+                var p = parts(now, session.timeZone);
+                var nowSec = p.hour * 3600 + p.minute * 60 + p.second;
+                var isOpen = nowSec >= session.open * 3600 && nowSec < session.close * 3600;
+                var targetHour = isOpen ? session.close : session.open;
+                var addDays = !isOpen && nowSec >= session.close * 3600 ? 1 : 0;
+                var norm = new Date(Date.UTC(p.year, p.month - 1, p.day + addDays));
+                var target = zonedTimeToUtc(
+                    norm.getUTCFullYear(),
+                    norm.getUTCMonth() + 1,
+                    norm.getUTCDate(),
+                    targetHour,
+                    0,
+                    0,
+                    session.timeZone
+                );
+                var state = root.querySelector('.state');
+                state.setAttribute('data-state', isOpen ? 'open' : 'closed');
+                root.querySelector('[data-label]').textContent = isOpen ? 'open' : 'closed';
+                root.querySelector('[data-count]').textContent = phrase(target - nowMs, isOpen);
+            }
+        }
+
+        function tick() {
+            render();
+            window.setTimeout(tick, 15000);
+        }
+
+        tick();
+    </script>
+</body>
+</html>

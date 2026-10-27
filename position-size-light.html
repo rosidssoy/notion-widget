@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>position size</title>
+  <style>
+    html, body {
+      margin: 0;
+      background: transparent;
+      color: #000000;
+      font-family: monospace;
+      font-variant-caps: all-petite-caps;
+      font-variant-numeric: tabular-nums;
+      font-size: 16px;
+    }
+
+    .widget {
+      padding: 5px 5px;
+      color: #000000;
+      display: flex;
+      justify-content: center;
+      align-items: stretch;
+      flex-direction: column;
+      width: 95%;
+      max-width: 420px;
+      margin: auto;
+      border: 1px solid #000000;
+      border-radius: 5px;
+      box-shadow: 0px 0px 0px 0px #000000;
+      background: transparent;
+      box-sizing: border-box;
+      gap: 5px;
+    }
+
+    .title {
+      text-align: center;
+      border-bottom: 1px solid #000000;
+      padding-bottom: 4px;
+    }
+
+    .session {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .session + .session {
+      border-top: 1px solid #000000;
+      padding-top: 5px;
+    }
+
+    .head, .grid, .lines {
+      display: grid;
+      align-items: center;
+      gap: 2px 8px;
+    }
+
+    .head {
+      grid-template-columns: minmax(0, 1fr) auto;
+    }
+
+    .lines {
+      grid-template-columns: 4.6em minmax(0, 1fr);
+    }
+
+    .grid {
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 4px 8px;
+    }
+
+    .num, .lines span:nth-child(even), .grid .num {
+      text-align: right;
+    }
+
+    .hours {
+      text-align: right;
+    }
+
+    button, input {
+      font-family: monospace;
+      font-variant-caps: all-petite-caps;
+      font-variant-numeric: tabular-nums;
+      font-size: 1em;
+      color: inherit;
+      background: transparent;
+      border: 1px solid #000000;
+      border-radius: 5px;
+      box-sizing: border-box;
+      appearance: none;
+      -webkit-appearance: none;
+    }
+
+    input {
+      width: 9.2em;
+      text-align: right;
+      padding: 3px 5px;
+    }
+
+    input::placeholder {
+      color: rgba(0, 0, 0, 0.45);
+    }
+
+    input:focus, button:focus {
+      outline: 1px solid #000000;
+      outline-offset: 1px;
+    }
+
+    .seg {
+      display: flex;
+      gap: 5px;
+    }
+
+    .seg button {
+      flex: 1;
+      padding: 3px 8px;
+      cursor: pointer;
+    }
+
+    button[aria-pressed="true"] {
+      background: #000000;
+      color: #ffffff;
+    }
+
+    .block {
+      border-top: 1px solid #000000;
+      padding-top: 5px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .bar {
+      position: relative;
+      height: 12px;
+      border: 1px solid #000000;
+      border-radius: 5px;
+      background: transparent;
+      overflow: hidden;
+    }
+
+    .fill {
+      display: block;
+      height: 100%;
+      width: 0;
+      background: transparent;
+    }
+
+    .fill.green { background: #007a00; }
+    .fill.yellow { background: #e2b000; }
+    .fill.red { background: #c40000; }
+
+    .tick {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 1px;
+      background: rgba(0, 0, 0, 0.45);
+    }
+
+    .tick.t50 { left: 50%; }
+    .tick.t80 { left: 80%; }
+
+    .meter-label {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .num.up, .status[data-state="open"] { color: #007a00; }
+    .num.down, .status[data-state="closed"] { color: #c40000; }
+    .num.green { color: #007a00; }
+    .num.yellow { color: #8a6500; }
+    .num.red { color: #c40000; }
+
+    .note {
+      color: #c40000;
+      min-height: 1.2em;
+    }
+
+    .scale {
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <!-- risk amount = balance * risk %. units = risk amount / abs(entry - sl). 1 lot = 100,000 units. r:r uses optional tp. -->
+  <div class="widget">
+    <div class="title">position size</div>
+    <div class="grid">
+      <label for="balance">balance</label>
+      <input id="balance" type="text" inputmode="decimal" autocomplete="off" spellcheck="false" placeholder="10000">
+      <label for="risk">risk %</label>
+      <input id="risk" type="text" inputmode="decimal" autocomplete="off" spellcheck="false" placeholder="1">
+      <label for="entry">entry</label>
+      <input id="entry" type="text" inputmode="decimal" autocomplete="off" spellcheck="false" placeholder="1.10000">
+      <label for="sl">sl</label>
+      <input id="sl" type="text" inputmode="decimal" autocomplete="off" spellcheck="false" placeholder="1.09500">
+      <label for="tp">tp</label>
+      <input id="tp" type="text" inputmode="decimal" autocomplete="off" spellcheck="false" placeholder="optional">
+    </div>
+    <div class="block">
+      <div class="grid">
+      <span>side</span>
+      <span class="num" id="out-side">&mdash;</span>
+      <span>risk amount</span>
+      <span class="num" id="out-risk">&mdash;</span>
+      <span>units</span>
+      <span class="num" id="out-units">&mdash;</span>
+      <span>lots (100k)</span>
+      <span class="num" id="out-lots">&mdash;</span>
+      <span>r:r</span>
+      <span class="num" id="out-rr">&mdash;</span>
+      </div>
+    </div>
+  </div>
+  <script>
+    var KEY = 'notion-widget:position-size';
+    var ids = ['balance', 'risk', 'entry', 'sl', 'tp'];
+
+    function parseNum(raw) {
+      if (typeof raw !== 'string') return NaN;
+      var t = raw.trim().replace(/,/g, '').replace(/%$/, '');
+      if (t === '') return NaN;
+      var n = Number(t);
+      return Number.isFinite(n) ? n : NaN;
+    }
+
+    function money(n) {
+      return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function units(n) {
+      return n.toLocaleString('en-US', { maximumFractionDigits: 2 });
+    }
+
+    function lots(n) {
+      return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+    }
+
+    function dash() {
+      return '\u2014';
+    }
+
+    function setText(id, text, level) {
+      var el = document.getElementById(id);
+      el.textContent = text;
+      el.className = 'num' + (level ? ' ' + level : '');
+    }
+
+    function render() {
+      var balance = parseNum(document.getElementById('balance').value);
+      var riskPct = parseNum(document.getElementById('risk').value);
+      var entry = parseNum(document.getElementById('entry').value);
+      var sl = parseNum(document.getElementById('sl').value);
+      var tpRaw = document.getElementById('tp').value.trim();
+      var tp = parseNum(document.getElementById('tp').value);
+      var riskAmount = balance >= 0 && riskPct >= 0 ? balance * (riskPct / 100) : NaN;
+      var distance = Number.isFinite(entry) && Number.isFinite(sl) ? Math.abs(entry - sl) : NaN;
+      var unitSize = Number.isFinite(riskAmount) && distance > 0 ? riskAmount / distance : NaN;
+      var lotSize = Number.isFinite(unitSize) ? unitSize / 100000 : NaN;
+      var side = dash();
+      if (Number.isFinite(entry) && Number.isFinite(sl) && entry !== sl) {
+        side = sl < entry ? 'long' : 'short';
+      }
+      var rr = NaN;
+      if (tpRaw !== '' && Number.isFinite(tp) && distance > 0 && Number.isFinite(entry) && entry !== sl) {
+        var reward = sl < entry ? tp - entry : entry - tp;
+        rr = reward / distance;
+      }
+      setText('out-side', side, '');
+      setText('out-risk', Number.isFinite(riskAmount) ? money(riskAmount) : dash(), '');
+      setText('out-units', Number.isFinite(unitSize) ? units(unitSize) : dash(), '');
+      setText('out-lots', Number.isFinite(lotSize) ? lots(lotSize) : dash(), '');
+      if (Number.isFinite(rr)) {
+        var body = Math.abs(rr).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        setText('out-rr', '1 : ' + (rr < 0 ? '-' : '') + body, rr > 0 ? 'up' : rr < 0 ? 'down' : '');
+      } else {
+        setText('out-rr', dash(), '');
+      }
+    }
+
+    function save() {
+      var data = {};
+      for (var i = 0; i < ids.length; i++) data[ids[i]] = document.getElementById(ids[i]).value;
+      try { localStorage.setItem(KEY, JSON.stringify(data)); } catch (e) {}
+    }
+
+    function load() {
+      try {
+        var data = JSON.parse(localStorage.getItem(KEY) || '{}');
+        for (var i = 0; i < ids.length; i++) {
+          if (data && typeof data[ids[i]] === 'string') document.getElementById(ids[i]).value = data[ids[i]];
+        }
+      } catch (e) {}
+    }
+
+    var inputs = document.querySelectorAll('input');
+    for (var i = 0; i < inputs.length; i++) {
+      inputs[i].addEventListener('input', function () {
+        save();
+        render();
+      });
+    }
+    load();
+    render();
+  </script>
+</body>
+</html>

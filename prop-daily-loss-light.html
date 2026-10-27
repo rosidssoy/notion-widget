@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>prop daily loss</title>
+  <style>
+    html, body {
+      margin: 0;
+      background: transparent;
+      color: #000000;
+      font-family: monospace;
+      font-variant-caps: all-petite-caps;
+      font-variant-numeric: tabular-nums;
+      font-size: 16px;
+    }
+
+    .widget {
+      padding: 5px 5px;
+      color: #000000;
+      display: flex;
+      justify-content: center;
+      align-items: stretch;
+      flex-direction: column;
+      width: 95%;
+      max-width: 420px;
+      margin: auto;
+      border: 1px solid #000000;
+      border-radius: 5px;
+      box-shadow: 0px 0px 0px 0px #000000;
+      background: transparent;
+      box-sizing: border-box;
+      gap: 5px;
+    }
+
+    .title {
+      text-align: center;
+      border-bottom: 1px solid #000000;
+      padding-bottom: 4px;
+    }
+
+    .session {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .session + .session {
+      border-top: 1px solid #000000;
+      padding-top: 5px;
+    }
+
+    .head, .grid, .lines {
+      display: grid;
+      align-items: center;
+      gap: 2px 8px;
+    }
+
+    .head {
+      grid-template-columns: minmax(0, 1fr) auto;
+    }
+
+    .lines {
+      grid-template-columns: 4.6em minmax(0, 1fr);
+    }
+
+    .grid {
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 4px 8px;
+    }
+
+    .num, .lines span:nth-child(even), .grid .num {
+      text-align: right;
+    }
+
+    .hours {
+      text-align: right;
+    }
+
+    button, input {
+      font-family: monospace;
+      font-variant-caps: all-petite-caps;
+      font-variant-numeric: tabular-nums;
+      font-size: 1em;
+      color: inherit;
+      background: transparent;
+      border: 1px solid #000000;
+      border-radius: 5px;
+      box-sizing: border-box;
+      appearance: none;
+      -webkit-appearance: none;
+    }
+
+    input {
+      width: 9.2em;
+      text-align: right;
+      padding: 3px 5px;
+    }
+
+    input::placeholder {
+      color: rgba(0, 0, 0, 0.45);
+    }
+
+    input:focus, button:focus {
+      outline: 1px solid #000000;
+      outline-offset: 1px;
+    }
+
+    .seg {
+      display: flex;
+      gap: 5px;
+    }
+
+    .seg button {
+      flex: 1;
+      padding: 3px 8px;
+      cursor: pointer;
+    }
+
+    button[aria-pressed="true"] {
+      background: #000000;
+      color: #ffffff;
+    }
+
+    .block {
+      border-top: 1px solid #000000;
+      padding-top: 5px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .bar {
+      position: relative;
+      height: 12px;
+      border: 1px solid #000000;
+      border-radius: 5px;
+      background: transparent;
+      overflow: hidden;
+    }
+
+    .fill {
+      display: block;
+      height: 100%;
+      width: 0;
+      background: transparent;
+    }
+
+    .fill.green { background: #007a00; }
+    .fill.yellow { background: #e2b000; }
+    .fill.red { background: #c40000; }
+
+    .tick {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 1px;
+      background: rgba(0, 0, 0, 0.45);
+    }
+
+    .tick.t50 { left: 50%; }
+    .tick.t80 { left: 80%; }
+
+    .meter-label {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .num.up, .status[data-state="open"] { color: #007a00; }
+    .num.down, .status[data-state="closed"] { color: #c40000; }
+    .num.green { color: #007a00; }
+    .num.yellow { color: #8a6500; }
+    .num.red { color: #c40000; }
+
+    .note {
+      color: #c40000;
+      min-height: 1.2em;
+    }
+
+    .scale {
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <!-- Daily loss and max drawdown are measured from starting balance against current equity. -->
+  <div class="widget">
+    <div class="title">prop daily loss</div>
+    <div class="grid">
+      <label for="start">starting balance</label>
+      <input id="start" type="text" inputmode="decimal" autocomplete="off" spellcheck="false" placeholder="100000">
+      <label for="daily">max daily loss %</label>
+      <input id="daily" type="text" inputmode="decimal" autocomplete="off" spellcheck="false" placeholder="5">
+      <label for="dd">max drawdown %</label>
+      <input id="dd" type="text" inputmode="decimal" autocomplete="off" spellcheck="false" placeholder="10">
+      <label for="equity">current equity</label>
+      <input id="equity" type="text" inputmode="decimal" autocomplete="off" spellcheck="false" placeholder="97000">
+    </div>
+    <div class="block">
+      <div class="meter-label">
+        <span>daily loss</span>
+        <span class="num" id="daily-pct">&mdash;</span>
+      </div>
+      <div class="bar" id="daily-meter" role="meter" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="daily loss used">
+        <span class="fill" id="daily-fill"></span>
+        <span class="tick t50"></span>
+        <span class="tick t80"></span>
+      </div>
+      <div class="grid">
+        <span>used</span><span class="num" id="daily-used">&mdash;</span>
+        <span>left</span><span class="num" id="daily-left">&mdash;</span>
+      </div>
+    </div>
+    <div class="block">
+      <div class="meter-label">
+        <span>max drawdown</span>
+        <span class="num" id="dd-pct">&mdash;</span>
+      </div>
+      <div class="bar" id="dd-meter" role="meter" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="max drawdown used">
+        <span class="fill" id="dd-fill"></span>
+        <span class="tick t50"></span>
+        <span class="tick t80"></span>
+      </div>
+      <div class="grid">
+        <span>used</span><span class="num" id="dd-used">&mdash;</span>
+        <span>left</span><span class="num" id="dd-left">&mdash;</span>
+      </div>
+    </div>
+    <div class="scale">green, yellow at 50%, red at 80%</div>
+  </div>
+  <script>
+    var KEY = 'notion-widget:prop-daily-loss';
+    var ids = ['start', 'daily', 'dd', 'equity'];
+
+    function parseNum(raw) {
+      if (typeof raw !== 'string') return NaN;
+      var t = raw.trim().replace(/,/g, '').replace(/%$/, '');
+      if (t === '') return NaN;
+      var n = Number(t);
+      return Number.isFinite(n) ? n : NaN;
+    }
+
+    function money(n) {
+      return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function dash() {
+      return '\u2014';
+    }
+
+    function usage(loss, budget) {
+      if (!Number.isFinite(loss) || !Number.isFinite(budget) || budget < 0) return NaN;
+      if (budget === 0) return loss > 0 ? Infinity : 0;
+      return loss / budget;
+    }
+
+    function level(ratio) {
+      if (!Number.isFinite(ratio) && ratio !== Infinity) return '';
+      if (ratio >= 0.8) return 'red';
+      if (ratio >= 0.5) return 'yellow';
+      return 'green';
+    }
+
+    function pct(ratio) {
+      if (ratio === Infinity) return 'breach';
+      if (!Number.isFinite(ratio)) return dash();
+      return (ratio * 100).toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%';
+    }
+
+    function paint(prefix, ratio, loss, budget) {
+      var lv = level(ratio);
+      var fill = document.getElementById(prefix + '-fill');
+      var meter = document.getElementById(prefix + '-meter');
+      var width = 0;
+      if (Number.isFinite(ratio)) width = Math.max(0, Math.min(100, ratio * 100));
+      else if (ratio === Infinity) width = 100;
+      fill.style.width = width.toFixed(2) + '%';
+      fill.className = 'fill' + (lv ? ' ' + lv : '');
+      var pctEl = document.getElementById(prefix + '-pct');
+      pctEl.textContent = pct(ratio);
+      pctEl.className = 'num' + (lv ? ' ' + lv : '');
+      var usedEl = document.getElementById(prefix + '-used');
+      var leftEl = document.getElementById(prefix + '-left');
+      if (Number.isFinite(loss) && Number.isFinite(budget)) {
+        usedEl.textContent = money(loss) + ' / ' + money(budget);
+        leftEl.textContent = money(Math.max(0, budget - loss));
+      } else {
+        usedEl.textContent = dash();
+        leftEl.textContent = dash();
+      }
+      var now = Number.isFinite(ratio) ? Math.max(0, Math.min(100, ratio * 100)) : ratio === Infinity ? 100 : 0;
+      meter.setAttribute('aria-valuenow', String(Math.round(now)));
+      meter.setAttribute('aria-valuetext', pct(ratio));
+    }
+
+    function render() {
+      var start = parseNum(document.getElementById('start').value);
+      var dailyPct = parseNum(document.getElementById('daily').value);
+      var ddPct = parseNum(document.getElementById('dd').value);
+      var equity = parseNum(document.getElementById('equity').value);
+      var loss = start >= 0 && Number.isFinite(equity) ? Math.max(0, start - equity) : NaN;
+      var dailyBudget = start >= 0 && dailyPct >= 0 ? start * dailyPct / 100 : NaN;
+      var ddBudget = start >= 0 && ddPct >= 0 ? start * ddPct / 100 : NaN;
+      paint('daily', usage(loss, dailyBudget), loss, dailyBudget);
+      paint('dd', usage(loss, ddBudget), loss, ddBudget);
+    }
+
+    function save() {
+      var data = {};
+      for (var i = 0; i < ids.length; i++) data[ids[i]] = document.getElementById(ids[i]).value;
+      try { localStorage.setItem(KEY, JSON.stringify(data)); } catch (e) {}
+    }
+
+    function load() {
+      try {
+        var data = JSON.parse(localStorage.getItem(KEY) || '{}');
+        for (var i = 0; i < ids.length; i++) {
+          if (data && typeof data[ids[i]] === 'string') document.getElementById(ids[i]).value = data[ids[i]];
+        }
+      } catch (e) {}
+    }
+
+    var inputs = document.querySelectorAll('input');
+    for (var i = 0; i < inputs.length; i++) {
+      inputs[i].addEventListener('input', function () {
+        save();
+        render();
+      });
+    }
+    load();
+    render();
+  </script>
+</body>
+</html>

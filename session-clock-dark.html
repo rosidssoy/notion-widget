@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>session clock</title>
+  <style>
+    html, body {
+      margin: 0;
+      background: transparent;
+      color: #ffffff;
+      font-family: monospace;
+      font-variant-caps: all-petite-caps;
+      font-variant-numeric: tabular-nums;
+      font-size: 16px;
+    }
+
+    .widget {
+      padding: 5px 5px;
+      color: #ffffff;
+      display: flex;
+      justify-content: center;
+      align-items: stretch;
+      flex-direction: column;
+      width: 95%;
+      max-width: 420px;
+      margin: auto;
+      border: 1px solid #ffffff;
+      border-radius: 5px;
+      box-shadow: 0px 0px 0px 0px #ffffff;
+      background: transparent;
+      box-sizing: border-box;
+      gap: 5px;
+    }
+
+    .title {
+      text-align: center;
+      border-bottom: 1px solid #ffffff;
+      padding-bottom: 4px;
+    }
+
+    .session {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .session + .session {
+      border-top: 1px solid #ffffff;
+      padding-top: 5px;
+    }
+
+    .head, .grid, .lines {
+      display: grid;
+      align-items: center;
+      gap: 2px 8px;
+    }
+
+    .head {
+      grid-template-columns: minmax(0, 1fr) auto;
+    }
+
+    .lines {
+      grid-template-columns: 4.6em minmax(0, 1fr);
+    }
+
+    .grid {
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 4px 8px;
+    }
+
+    .num, .lines span:nth-child(even), .grid .num {
+      text-align: right;
+    }
+
+    .hours {
+      text-align: right;
+    }
+
+    button, input {
+      font-family: monospace;
+      font-variant-caps: all-petite-caps;
+      font-variant-numeric: tabular-nums;
+      font-size: 1em;
+      color: inherit;
+      background: transparent;
+      border: 1px solid #ffffff;
+      border-radius: 5px;
+      box-sizing: border-box;
+      appearance: none;
+      -webkit-appearance: none;
+    }
+
+    input {
+      width: 9.2em;
+      text-align: right;
+      padding: 3px 5px;
+    }
+
+    input::placeholder {
+      color: rgba(255, 255, 255, 0.45);
+    }
+
+    input:focus, button:focus {
+      outline: 1px solid #ffffff;
+      outline-offset: 1px;
+    }
+
+    .seg {
+      display: flex;
+      gap: 5px;
+    }
+
+    .seg button {
+      flex: 1;
+      padding: 3px 8px;
+      cursor: pointer;
+    }
+
+    button[aria-pressed="true"] {
+      background: #ffffff;
+      color: #000000;
+    }
+
+    .block {
+      border-top: 1px solid #ffffff;
+      padding-top: 5px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .bar {
+      position: relative;
+      height: 12px;
+      border: 1px solid #ffffff;
+      border-radius: 5px;
+      background: transparent;
+      overflow: hidden;
+    }
+
+    .fill {
+      display: block;
+      height: 100%;
+      width: 0;
+      background: transparent;
+    }
+
+    .fill.green { background: #3ddc6a; }
+    .fill.yellow { background: #f5d400; }
+    .fill.red { background: #ff5c5c; }
+
+    .tick {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 1px;
+      background: rgba(255, 255, 255, 0.45);
+    }
+
+    .tick.t50 { left: 50%; }
+    .tick.t80 { left: 80%; }
+
+    .meter-label {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .num.up, .status[data-state="open"] { color: #3ddc6a; }
+    .num.down, .status[data-state="closed"] { color: #ff5c5c; }
+    .num.green { color: #3ddc6a; }
+    .num.yellow { color: #f5d400; }
+    .num.red { color: #ff5c5c; }
+
+    .note {
+      color: #ff5c5c;
+      min-height: 1.2em;
+    }
+
+    .scale {
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <!-- Sydney, Tokyo, London, and New York cash sessions in each city local time. Daylight saving follows Intl. -->
+  <div class="widget">
+    <div class="title">session clock</div>
+    <section class="session" id="sydney">
+      <div class="head">
+        <span class="name">Sydney</span>
+        <span class="status" data-status></span>
+      </div>
+      <div class="hours">07:00-16:00</div>
+      <div class="lines">
+        <span data-when>opens</span><span class="num" data-count>--:--:--</span>
+        <span>local</span><span class="num" data-local>--:--:--</span>
+        <span>city</span><span class="num" data-city>--:--:--</span>
+      </div>
+    </section>
+    <section class="session" id="tokyo">
+      <div class="head">
+        <span class="name">Tokyo</span>
+        <span class="status" data-status></span>
+      </div>
+      <div class="hours">09:00-18:00</div>
+      <div class="lines">
+        <span data-when>opens</span><span class="num" data-count>--:--:--</span>
+        <span>local</span><span class="num" data-local>--:--:--</span>
+        <span>city</span><span class="num" data-city>--:--:--</span>
+      </div>
+    </section>
+    <section class="session" id="london">
+      <div class="head">
+        <span class="name">London</span>
+        <span class="status" data-status></span>
+      </div>
+      <div class="hours">08:00-17:00</div>
+      <div class="lines">
+        <span data-when>opens</span><span class="num" data-count>--:--:--</span>
+        <span>local</span><span class="num" data-local>--:--:--</span>
+        <span>city</span><span class="num" data-city>--:--:--</span>
+      </div>
+    </section>
+    <section class="session" id="newyork">
+      <div class="head">
+        <span class="name">New York</span>
+        <span class="status" data-status></span>
+      </div>
+      <div class="hours">08:00-17:00</div>
+      <div class="lines">
+        <span data-when>opens</span><span class="num" data-count>--:--:--</span>
+        <span>local</span><span class="num" data-local>--:--:--</span>
+        <span>city</span><span class="num" data-city>--:--:--</span>
+      </div>
+    </section>
+  </div>
+  <script>
+    var SESSIONS = [{"id":"sydney","name":"Sydney","timeZone":"Australia/Sydney","open":7,"close":16},{"id":"tokyo","name":"Tokyo","timeZone":"Asia/Tokyo","open":9,"close":18},{"id":"london","name":"London","timeZone":"Europe/London","open":8,"close":17},{"id":"newyork","name":"New York","timeZone":"America/New_York","open":8,"close":17}];
+    var formatters = Object.create(null);
+
+    function formatter(timeZone) {
+      var key = timeZone || '';
+      if (!formatters[key]) {
+        var options = {
+          hourCycle: 'h23',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          timeZoneName: 'short'
+        };
+        if (timeZone) options.timeZone = timeZone;
+        formatters[key] = new Intl.DateTimeFormat('en-US', options);
+      }
+      return formatters[key];
+    }
+
+    function parts(date, timeZone) {
+      var list = formatter(timeZone).formatToParts(date);
+      var map = Object.create(null);
+      for (var i = 0; i < list.length; i++) {
+        if (list[i].type !== 'literal') map[list[i].type] = list[i].value;
+      }
+      var hour = Number(map.hour);
+      var year = Number(map.year);
+      var month = Number(map.month);
+      var day = Number(map.day);
+      if (hour === 24) {
+        hour = 0;
+        var next = new Date(Date.UTC(year, month - 1, day + 1));
+        year = next.getUTCFullYear();
+        month = next.getUTCMonth() + 1;
+        day = next.getUTCDate();
+      }
+      return {
+        year: year,
+        month: month,
+        day: day,
+        hour: hour,
+        minute: Number(map.minute),
+        second: Number(map.second),
+        name: map.timeZoneName || ''
+      };
+    }
+
+    function zonedTimeToUtc(year, month, day, hour, minute, second, timeZone) {
+      var utc = Date.UTC(year, month - 1, day, hour, minute, second);
+      for (var i = 0; i < 4; i++) {
+        var p = parts(new Date(utc), timeZone);
+        var asUtc = Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute, p.second);
+        var desired = Date.UTC(year, month - 1, day, hour, minute, second);
+        var diff = desired - asUtc;
+        utc += diff;
+        if (diff === 0) break;
+      }
+      return utc;
+    }
+
+    function pad2(n) {
+      return (n < 10 ? '0' : '') + n;
+    }
+
+    function clock(date, timeZone) {
+      var p = parts(date, timeZone);
+      return pad2(p.hour) + ':' + pad2(p.minute) + ':' + pad2(p.second) + ' ' + p.name;
+    }
+
+    function left(ms) {
+      var total = Math.max(0, Math.floor(ms / 1000));
+      var h = Math.floor(total / 3600);
+      var m = Math.floor((total % 3600) / 60);
+      var s = total % 60;
+      return pad2(h) + ':' + pad2(m) + ':' + pad2(s);
+    }
+
+    function render() {
+      var now = new Date();
+      var nowMs = now.getTime();
+      for (var i = 0; i < SESSIONS.length; i++) {
+        var session = SESSIONS[i];
+        var root = document.getElementById(session.id);
+        var p = parts(now, session.timeZone);
+        var nowSec = p.hour * 3600 + p.minute * 60 + p.second;
+        var openSec = session.open * 3600;
+        var closeSec = session.close * 3600;
+        var isOpen = nowSec >= openSec && nowSec < closeSec;
+        var targetHour = isOpen ? session.close : session.open;
+        var addDays = !isOpen && nowSec >= closeSec ? 1 : 0;
+        var norm = new Date(Date.UTC(p.year, p.month - 1, p.day + addDays));
+        var target = zonedTimeToUtc(
+          norm.getUTCFullYear(),
+          norm.getUTCMonth() + 1,
+          norm.getUTCDate(),
+          targetHour,
+          0,
+          0,
+          session.timeZone
+        );
+        var status = root.querySelector('[data-status]');
+        status.textContent = isOpen ? 'OPEN' : 'CLOSED';
+        status.setAttribute('data-state', isOpen ? 'open' : 'closed');
+        root.querySelector('[data-when]').textContent = isOpen ? 'closes' : 'opens';
+        root.querySelector('[data-count]').textContent = left(target - nowMs);
+        root.querySelector('[data-local]').textContent = clock(now);
+        root.querySelector('[data-city]').textContent = clock(now, session.timeZone);
+      }
+    }
+
+    function tick() {
+      render();
+      window.setTimeout(tick, 250);
+    }
+
+    tick();
+  </script>
+</body>
+</html>

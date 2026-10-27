@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>r multiple</title>
+  <style>
+    html, body {
+      margin: 0;
+      background: transparent;
+      color: #ffffff;
+      font-family: monospace;
+      font-variant-caps: all-petite-caps;
+      font-variant-numeric: tabular-nums;
+      font-size: 16px;
+    }
+
+    .widget {
+      padding: 5px 5px;
+      color: #ffffff;
+      display: flex;
+      justify-content: center;
+      align-items: stretch;
+      flex-direction: column;
+      width: 95%;
+      max-width: 420px;
+      margin: auto;
+      border: 1px solid #ffffff;
+      border-radius: 5px;
+      box-shadow: 0px 0px 0px 0px #ffffff;
+      background: transparent;
+      box-sizing: border-box;
+      gap: 5px;
+    }
+
+    .title {
+      text-align: center;
+      border-bottom: 1px solid #ffffff;
+      padding-bottom: 4px;
+    }
+
+    .session {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .session + .session {
+      border-top: 1px solid #ffffff;
+      padding-top: 5px;
+    }
+
+    .head, .grid, .lines {
+      display: grid;
+      align-items: center;
+      gap: 2px 8px;
+    }
+
+    .head {
+      grid-template-columns: minmax(0, 1fr) auto;
+    }
+
+    .lines {
+      grid-template-columns: 4.6em minmax(0, 1fr);
+    }
+
+    .grid {
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 4px 8px;
+    }
+
+    .num, .lines span:nth-child(even), .grid .num {
+      text-align: right;
+    }
+
+    .hours {
+      text-align: right;
+    }
+
+    button, input {
+      font-family: monospace;
+      font-variant-caps: all-petite-caps;
+      font-variant-numeric: tabular-nums;
+      font-size: 1em;
+      color: inherit;
+      background: transparent;
+      border: 1px solid #ffffff;
+      border-radius: 5px;
+      box-sizing: border-box;
+      appearance: none;
+      -webkit-appearance: none;
+    }
+
+    input {
+      width: 9.2em;
+      text-align: right;
+      padding: 3px 5px;
+    }
+
+    input::placeholder {
+      color: rgba(255, 255, 255, 0.45);
+    }
+
+    input:focus, button:focus {
+      outline: 1px solid #ffffff;
+      outline-offset: 1px;
+    }
+
+    .seg {
+      display: flex;
+      gap: 5px;
+    }
+
+    .seg button {
+      flex: 1;
+      padding: 3px 8px;
+      cursor: pointer;
+    }
+
+    button[aria-pressed="true"] {
+      background: #ffffff;
+      color: #000000;
+    }
+
+    .block {
+      border-top: 1px solid #ffffff;
+      padding-top: 5px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .bar {
+      position: relative;
+      height: 12px;
+      border: 1px solid #ffffff;
+      border-radius: 5px;
+      background: transparent;
+      overflow: hidden;
+    }
+
+    .fill {
+      display: block;
+      height: 100%;
+      width: 0;
+      background: transparent;
+    }
+
+    .fill.green { background: #3ddc6a; }
+    .fill.yellow { background: #f5d400; }
+    .fill.red { background: #ff5c5c; }
+
+    .tick {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 1px;
+      background: rgba(255, 255, 255, 0.45);
+    }
+
+    .tick.t50 { left: 50%; }
+    .tick.t80 { left: 80%; }
+
+    .meter-label {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .num.up, .status[data-state="open"] { color: #3ddc6a; }
+    .num.down, .status[data-state="closed"] { color: #ff5c5c; }
+    .num.green { color: #3ddc6a; }
+    .num.yellow { color: #f5d400; }
+    .num.red { color: #ff5c5c; }
+
+    .note {
+      color: #ff5c5c;
+      min-height: 1.2em;
+    }
+
+    .scale {
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <!-- Long R = (exit - entry) / (entry - stop). Short R = (entry - exit) / (stop - entry). -->
+  <div class="widget">
+    <div class="title">r multiple</div>
+    <div class="seg" role="group" aria-label="side">
+      <button type="button" id="side-long" aria-pressed="true">long</button>
+      <button type="button" id="side-short" aria-pressed="false">short</button>
+    </div>
+    <div class="grid">
+      <label for="entry">entry</label>
+      <input id="entry" type="text" inputmode="decimal" autocomplete="off" spellcheck="false" placeholder="1.10000">
+      <label for="stop">stop</label>
+      <input id="stop" type="text" inputmode="decimal" autocomplete="off" spellcheck="false" placeholder="1.09500">
+      <label for="exit">exit</label>
+      <input id="exit" type="text" inputmode="decimal" autocomplete="off" spellcheck="false" placeholder="1.11000">
+    </div>
+    <div class="note" id="note"></div>
+    <div class="block">
+      <div class="grid">
+      <span>r</span>
+      <span class="num" id="out-r">&mdash;</span>
+      <span>p/l</span>
+      <span class="num" id="out-pl">&mdash;</span>
+      </div>
+    </div>
+  </div>
+  <script>
+    var side = 'long';
+
+    function parseNum(raw) {
+      if (typeof raw !== 'string') return NaN;
+      var t = raw.trim().replace(/,/g, '');
+      if (t === '') return NaN;
+      var n = Number(t);
+      return Number.isFinite(n) ? n : NaN;
+    }
+
+    function precision() {
+      var p = 2;
+      var ids = ['entry', 'stop', 'exit'];
+      for (var i = 0; i < ids.length; i++) {
+        var s = document.getElementById(ids[i]).value.trim();
+        var dot = s.indexOf('.');
+        if (dot >= 0) p = Math.max(p, s.length - dot - 1);
+      }
+      return Math.min(p, 8);
+    }
+
+    function signed(n, digits) {
+      var body = Math.abs(n).toFixed(digits);
+      if (n > 0) return '+' + body;
+      if (n < 0) return '-' + body;
+      return body;
+    }
+
+    function dash() {
+      return '\u2014';
+    }
+
+    function clearOutputs() {
+      var rEl = document.getElementById('out-r');
+      var plEl = document.getElementById('out-pl');
+      rEl.textContent = dash();
+      rEl.className = 'num';
+      plEl.textContent = dash();
+      plEl.className = 'num';
+    }
+
+    function render() {
+      var entry = parseNum(document.getElementById('entry').value);
+      var stop = parseNum(document.getElementById('stop').value);
+      var exit = parseNum(document.getElementById('exit').value);
+      var note = document.getElementById('note');
+      note.textContent = '';
+      if (!Number.isFinite(entry) || !Number.isFinite(stop) || !Number.isFinite(exit)) {
+        clearOutputs();
+        return;
+      }
+      if (entry === stop) {
+        note.textContent = 'stop equals entry';
+        clearOutputs();
+        return;
+      }
+      if (side === 'long' && stop > entry) {
+        note.textContent = 'stop is above entry';
+        clearOutputs();
+        return;
+      }
+      if (side === 'short' && stop < entry) {
+        note.textContent = 'stop is below entry';
+        clearOutputs();
+        return;
+      }
+      var risk = side === 'long' ? entry - stop : stop - entry;
+      var pl = side === 'long' ? exit - entry : entry - exit;
+      var r = pl / risk;
+      var digits = precision();
+      var rEl = document.getElementById('out-r');
+      var plEl = document.getElementById('out-pl');
+      rEl.textContent = signed(r, 2) + 'R';
+      rEl.className = 'num' + (r > 0 ? ' up' : r < 0 ? ' down' : '');
+      plEl.textContent = signed(pl, digits);
+      plEl.className = 'num' + (pl > 0 ? ' up' : pl < 0 ? ' down' : '');
+    }
+
+    function setSide(next) {
+      side = next;
+      document.getElementById('side-long').setAttribute('aria-pressed', side === 'long' ? 'true' : 'false');
+      document.getElementById('side-short').setAttribute('aria-pressed', side === 'short' ? 'true' : 'false');
+      render();
+    }
+
+    document.getElementById('side-long').addEventListener('click', function () { setSide('long'); });
+    document.getElementById('side-short').addEventListener('click', function () { setSide('short'); });
+    var inputs = document.querySelectorAll('input');
+    for (var i = 0; i < inputs.length; i++) inputs[i].addEventListener('input', render);
+    render();
+  </script>
+</body>
+</html>
